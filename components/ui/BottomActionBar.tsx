@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useGameStore } from '@/lib/gameStore';
 import {
-  Utensils,
   DollarSign,
   ChevronDown,
   ChevronUp,
@@ -11,6 +10,10 @@ import {
   Sparkles,
   Heart,
   Battery,
+  ShoppingBag,
+  Dna,
+  BookOpen,
+  Home,
 } from 'lucide-react';
 
 export default function BottomActionBar() {
@@ -21,7 +24,6 @@ export default function BottomActionBar() {
   const selectedFishId = useGameStore((state) => state.selectedFishId);
   const setSelectedFishId = useGameStore((state) => state.setSelectedFishId);
   const fishList = useGameStore((state) => state.fish);
-  const feedFishInAquarium = useGameStore((state) => state.feedFishInAquarium);
   const sellFish = useGameStore((state) => state.sellFish);
   const moveFishToAquarium = useGameStore((state) => state.moveFishToAquarium);
   const breedingJob = useGameStore((state) => state.breedingJob);
@@ -107,7 +109,7 @@ export default function BottomActionBar() {
 
                   {/* Status Gauges: Hunger, Happiness, Health */}
                   <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500 font-mono">
-                    <div className="flex items-center gap-1" title="Hunger Level">
+                    <div className="flex items-center gap-1" title="Hunger Level (Automatic Feeding Active)">
                       <Battery className="w-3 h-3 text-amber-500" />
                       <span>{Math.round(selectedFish.hunger)}%</span>
                     </div>
@@ -125,7 +127,7 @@ export default function BottomActionBar() {
               {/* Action Buttons for Selected Fish */}
               <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                 {/* Move to another aquarium */}
-                {aquariums.filter((a) => a.unlocked && a.id !== selectedFish.aquariumId).length > 0 && (
+                {aquariums.filter((a) => a.unlocked && !a.isTerrarium && a.id !== selectedFish.aquariumId).length > 0 && (
                   <select
                     onChange={(e) => {
                       if (e.target.value) {
@@ -140,7 +142,7 @@ export default function BottomActionBar() {
                       Move Tank...
                     </option>
                     {aquariums
-                      .filter((a) => a.unlocked && a.id !== selectedFish.aquariumId)
+                      .filter((a) => a.unlocked && !a.isTerrarium && a.id !== selectedFish.aquariumId)
                       .map((a) => (
                         <option key={a.id} value={a.id}>
                           To: {a.name}
@@ -171,34 +173,39 @@ export default function BottomActionBar() {
               </div>
             </div>
           ) : (
-            /* 3. General Aquarium Action Dock */
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => feedFishInAquarium(activeAquariumId)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs sm:text-sm rounded-xl transition-colors shadow-sm"
-                >
-                  <Utensils className="w-4 h-4" />
-                  Feed Tank
-                </button>
-
-                <p className="hidden sm:block text-xs text-slate-500">
-                  Tip: Click anywhere in the water to drop flakes directly.
-                </p>
-              </div>
-
+            /* 3. General Habitat Navigation Dock */
+            <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setActiveView('shop')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl transition-colors shadow-sm"
                 >
+                  <ShoppingBag className="w-3.5 h-3.5" />
                   Buy Fish
                 </button>
                 <button
                   onClick={() => setActiveView('breeding')}
-                  className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors shadow-sm"
                 >
+                  <Dna className="w-3.5 h-3.5 text-indigo-600" />
                   Breeding Lab
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveView('collection')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors shadow-sm"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-blue-600" />
+                  Collection
+                </button>
+                <button
+                  onClick={() => setActiveView('terrarium')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition-colors shadow-sm"
+                >
+                  <Home className="w-3.5 h-3.5 text-emerald-600" />
+                  Habitats
                 </button>
               </div>
             </div>

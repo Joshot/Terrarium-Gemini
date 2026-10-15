@@ -26,17 +26,28 @@ export interface FishSpeciesCatalog {
 }
 
 
+export type HabitatType =
+  | 'standard_freshwater'
+  | 'planted_aquarium'
+  | 'large_premium'
+  | 'nano_aquarium'
+  | 'decorative_terrarium'
+  | 'advanced_terrarium';
+
 export interface Aquarium {
   id: string;
   name: string;
+  habitatType: HabitatType;
+  description: string;
   capacity: number;
-  theme: 'freshwater' | 'riverbed' | 'twilight' | 'sunken_palace';
+  theme: 'freshwater' | 'riverbed' | 'twilight' | 'sunken_palace' | 'moss_forest' | 'rainforest';
   decorations: string[];
   waterTemp: number;
   waterPh: number;
   cleanliness: number;
   cost: number;
   unlocked: boolean;
+  isTerrarium?: boolean;
 }
 
 export interface DecorationItem {

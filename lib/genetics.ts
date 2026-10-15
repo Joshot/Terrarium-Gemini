@@ -1,6 +1,6 @@
-export type BodyShape = 'streamlined' | 'deep' | 'disc' | 'slender' | 'round';
-export type FinShape = 'fan' | 'veil' | 'spiky' | 'flowing' | 'rounded';
-export type TailShape = 'forked' | 'delta' | 'crown' | 'rounded' | 'double';
+export type BodyShape = 'streamlined' | 'deep' | 'disc' | 'slender' | 'round' | 'elongated' | 'short';
+export type FinShape = 'fan' | 'veil' | 'spiky' | 'flowing' | 'rounded' | 'compact' | 'high_dorsal';
+export type TailShape = 'forked' | 'delta' | 'crown' | 'rounded' | 'double' | 'fan' | 'long';
 export type FishPattern = 'solid' | 'striped' | 'spotted' | 'gradient' | 'shimmer' | 'bioluminescent';
 export type SpecialTrait = 'none' | 'bioluminescent' | 'golden_glimmer' | 'crystal_scales' | 'swift_swimmer' | 'cozy_aura';
 export type Rarity = 'Common' | 'Uncommon' | 'Rare' | 'Exotic' | 'Legendary';
@@ -111,9 +111,9 @@ export function blendColors(c1: string, c2: string, weight: number): string {
   return hslToHex(h, s, l);
 }
 
-const BODY_SHAPES: BodyShape[] = ['streamlined', 'deep', 'disc', 'slender', 'round'];
-const FIN_SHAPES: FinShape[] = ['fan', 'veil', 'spiky', 'flowing', 'rounded'];
-const TAIL_SHAPES: TailShape[] = ['forked', 'delta', 'crown', 'rounded', 'double'];
+const BODY_SHAPES: BodyShape[] = ['streamlined', 'deep', 'disc', 'slender', 'round', 'elongated', 'short'];
+const FIN_SHAPES: FinShape[] = ['fan', 'veil', 'spiky', 'flowing', 'rounded', 'compact', 'high_dorsal'];
+const TAIL_SHAPES: TailShape[] = ['forked', 'delta', 'crown', 'rounded', 'double', 'fan', 'long'];
 const PATTERNS: FishPattern[] = ['solid', 'striped', 'spotted', 'gradient', 'shimmer', 'bioluminescent'];
 
 const PREFIXES = [

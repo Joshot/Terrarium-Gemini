@@ -129,6 +129,8 @@ function createStarterFish(): FishInstance[] {
 
 interface GameState {
   coins: number;
+  fractionalCoins: number;
+  autoFeedTimerSeconds: number;
   aquariums: Aquarium[];
   activeAquariumId: string;
   fish: FishInstance[];
@@ -140,7 +142,8 @@ interface GameState {
   floatingCoins: FloatingCoin[];
   activeView: ActiveView;
   selectedFishId: string | null;
-  timeSpeed: number; // 0 = pause, 1 = normal, 2 = fast, 5 = ultra
+  timeSpeed: number; // Constant 1.0 normal simulation speed
+  immersiveMode: boolean;
   lastTickTimestamp: number;
   graphicsQuality: GraphicsQuality;
   volume: number;
@@ -154,6 +157,7 @@ interface GameState {
   setActiveView: (view: ActiveView) => void;
   setSelectedFishId: (id: string | null) => void;
   setActiveAquariumId: (id: string) => void;
+  toggleImmersiveMode: () => void;
   setTimeSpeed: (speed: number) => void;
   setGraphicsQuality: (quality: GraphicsQuality) => void;
   setVolume: (vol: number) => void;
@@ -191,6 +195,8 @@ interface GameState {
 
 export const useGameStore = create<GameState>((set, get) => ({
   coins: 140,
+  fractionalCoins: 0,
+  autoFeedTimerSeconds: 0,
   aquariums: INITIAL_AQUARIUMS,
   activeAquariumId: 'tank_main',
   fish: createStarterFish(),
@@ -203,6 +209,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   activeView: 'aquarium',
   selectedFishId: null,
   timeSpeed: 1,
+  immersiveMode: false,
   lastTickTimestamp: Date.now(),
   graphicsQuality: 'balanced',
   volume: 0.5,
@@ -211,6 +218,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   offlineEarningsReport: null,
   terrariumMistActive: false,
   terrariumDayNight: 0.25,
+
+  toggleImmersiveMode: () => {
+    sound.playClick();
+    set((state) => ({ immersiveMode: !state.immersiveMode }));
+  },
 
   setActiveView: (view) => {
     sound.playClick();
@@ -224,12 +236,19 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setActiveAquariumId: (id) => {
     sound.playClick();
-    set({ activeAquariumId: id });
+    const state = get();
+    const target = state.aquariums.find((a) => a.id === id);
+    const isTerrarium = Boolean(target?.isTerrarium);
+    set({
+      activeAquariumId: id,
+      activeView: isTerrarium ? 'terrarium' : 'aquarium',
+    });
+    get().saveGame();
   },
 
-  setTimeSpeed: (speed) => {
-    sound.playClick();
-    set({ timeSpeed: speed });
+  setTimeSpeed: (_speed) => {
+    // Game operates at constant normal speed
+    set({ timeSpeed: 1 });
   },
 
   setGraphicsQuality: (quality) => set({ graphicsQuality: quality }),
@@ -677,10 +696,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     sound.playDiscovery();
+    const isTerrarium = Boolean(target.isTerrarium);
     set({
       coins: state.coins - target.cost,
       aquariums: state.aquariums.map((a) => (a.id === aquariumId ? { ...a, unlocked: true } : a)),
       activeAquariumId: aquariumId,
+      activeView: isTerrarium ? 'terrarium' : 'aquarium',
       notification: `Unlocked and moved into ${target.name}!`,
     });
     get().saveGame();
@@ -766,23 +787,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         newStage = 'adult';
       }
 
-      // Passive income generation: each fish generates coins periodically
-      // E.g. every 15s probability check
-      const incomePerMin = calculateFishIncome({ ...f, hunger: newHunger, happiness: newHappiness, stage: newStage }, incomeMult);
-      const coinPerTickChance = (incomePerMin / 60) * scaledDelta * 0.15;
-
-      if (Math.random() < coinPerTickChance && newFloatingCoins.length < 12) {
-        const coinVal = Math.max(1, Math.round(incomePerMin / 4));
-        newFloatingCoins.push({
-          id: `coin_${now}_${Math.random()}`,
-          x: (Math.random() - 0.5) * 3,
-          y: 0.5 + Math.random() * 1.0,
-          z: (Math.random() - 0.5) * 1.5,
-          amount: coinVal,
-          createdAt: now,
-        });
-      }
-
+      // Passive income generation: all fish in all owned habitats contribute to total earnings
       return {
         ...f,
         hunger: Math.round(newHunger * 10) / 10,
@@ -792,35 +797,56 @@ export const useGameStore = create<GameState>((set, get) => ({
       };
     });
 
-    // 5. Auto-feeder check
-    const autoFeeder = state.upgrades.find((u) => u.id === 'upg_autofeed');
-    if (autoFeeder && autoFeeder.level > 0) {
-      // Auto-feed hungry fish periodically
-      if (Math.random() < 0.03 * autoFeeder.level * scaledDelta) {
-        for (const f of updatedFish) {
-          if (f.hunger < 50) {
-            f.hunger = Math.min(100, f.hunger + 25);
-            f.happiness = Math.min(100, f.happiness + 10);
-          }
-        }
-      }
+    // 4. Direct passive income accumulation from all fish and all owned habitats
+    let totalIncomePerSec = 0;
+    for (const f of updatedFish) {
+      const incPerMin = calculateFishIncome(f, incomeMult);
+      totalIncomePerSec += incPerMin / 60;
     }
+    const unlockedHabitats = state.aquariums.filter((a) => a.unlocked);
+    totalIncomePerSec += unlockedHabitats.length * 0.15; // Habitat biotope dividend
 
-    // 6. Food pellets falling physics
-    const currentPellets = state.foodPellets
+    const accum = (state.fractionalCoins || 0) + totalIncomePerSec * scaledDelta;
+    const coinsToAdd = Math.floor(accum);
+    const newFractional = accum - coinsToAdd;
+    const updatedCoins = state.coins + coinsToAdd;
+
+    // 5. Automatic Feeding System:
+    // Food appears naturally at scheduled intervals (~3 minutes or when hungry)
+    let autoFeedTimer = (state.autoFeedTimerSeconds ?? 0) + scaledDelta;
+    let currentPellets = state.foodPellets
       .map((p) => ({
         ...p,
         y: p.y + p.vy * scaledDelta * 0.5,
       }))
-      .filter((p) => p.y > -0.8); // reach bottom gravel
+      .filter((p) => p.y > -0.8);
 
-    // 7. Terrarium day/night cycle
+    const avgHunger = updatedFish.length > 0 ? updatedFish.reduce((s, f) => s + f.hunger, 0) / updatedFish.length : 100;
+    if (autoFeedTimer >= 180 || (avgHunger < 65 && autoFeedTimer >= 60)) {
+      autoFeedTimer = 0;
+      for (let i = 0; i < 4; i++) {
+        currentPellets.push({
+          id: `pellet_${now}_${i}`,
+          x: (Math.random() - 0.5) * 3.0,
+          y: 1.4 + Math.random() * 0.3,
+          z: (Math.random() - 0.5) * 1.4,
+          vy: -0.2 - Math.random() * 0.1,
+          nutrition: 28,
+          eaten: false,
+        });
+      }
+    }
+
+    // 6. Terrarium day/night cycle
     const dayNightCycle = (state.terrariumDayNight + (scaledDelta * 0.005)) % 1.0;
 
     set({
+      coins: updatedCoins,
+      fractionalCoins: newFractional,
+      autoFeedTimerSeconds: autoFeedTimer,
       breedingJob: updatedJob,
       fish: updatedFish,
-      floatingCoins: newFloatingCoins.slice(-15),
+      floatingCoins: [],
       foodPellets: currentPellets,
       lastTickTimestamp: now,
       terrariumDayNight: dayNightCycle,
@@ -890,9 +916,16 @@ export const useGameStore = create<GameState>((set, get) => ({
         offlineEarnedCoins = Math.round(totalIncomePerSec * cappedOfflineSeconds * 0.7); // 70% offline yield
       }
 
+      // Ensure all 6 distinct habitat types are available in state
+      const loadedAquariums = Array.isArray(data.aquariums) ? data.aquariums : INITIAL_AQUARIUMS;
+      const mergedAquariums = INITIAL_AQUARIUMS.map((init) => {
+        const found = loadedAquariums.find((a: { id: string; unlocked?: boolean }) => a.id === init.id);
+        return found ? { ...init, ...found, unlocked: Boolean(found.unlocked || init.unlocked) } : init;
+      });
+
       set({
         coins: (data.coins || 140) + offlineEarnedCoins,
-        aquariums: data.aquariums || INITIAL_AQUARIUMS,
+        aquariums: mergedAquariums,
         activeAquariumId: data.activeAquariumId || 'tank_main',
         fish: data.fish || createStarterFish(),
         breedingJob: data.breedingJob || null,

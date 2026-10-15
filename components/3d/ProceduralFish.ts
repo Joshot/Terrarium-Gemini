@@ -45,27 +45,42 @@ export function createProceduralFish(
   const stageScale = stage === 'fry' ? 0.38 : stage === 'juvenile' ? 0.68 : 1.0;
   const overallScale = traits.scaleSize * stageScale;
 
-  // Geometry dimensions based on bodyShape
-  let bodyLength = 0.9;
-  let bodyHeight = 0.48;
-  let bodyWidth = 0.24;
+  // Geometry dimensions based on bodyShape archetypes
+  let bodyLength = 0.95;
+  let bodyHeight = 0.46;
+  let bodyWidth = 0.22;
+  let snoutRatio = 0.28;
 
   if (traits.bodyShape === 'slender') {
-    bodyLength = 1.05;
-    bodyHeight = 0.3;
-    bodyWidth = 0.18;
+    bodyLength = 1.12;
+    bodyHeight = 0.28;
+    bodyWidth = 0.16;
+    snoutRatio = 0.32;
   } else if (traits.bodyShape === 'disc') {
     bodyLength = 0.78;
-    bodyHeight = 0.85;
-    bodyWidth = 0.2;
+    bodyHeight = 0.92;
+    bodyWidth = 0.18;
+    snoutRatio = 0.2;
   } else if (traits.bodyShape === 'deep') {
-    bodyLength = 0.9;
-    bodyHeight = 0.65;
-    bodyWidth = 0.26;
+    bodyLength = 0.88;
+    bodyHeight = 0.72;
+    bodyWidth = 0.22;
+    snoutRatio = 0.24;
   } else if (traits.bodyShape === 'round') {
-    bodyLength = 0.75;
-    bodyHeight = 0.65;
-    bodyWidth = 0.48;
+    bodyLength = 0.72;
+    bodyHeight = 0.68;
+    bodyWidth = 0.46;
+    snoutRatio = 0.18;
+  } else if (traits.bodyShape === 'elongated') {
+    bodyLength = 1.38;
+    bodyHeight = 0.22;
+    bodyWidth = 0.16;
+    snoutRatio = 0.25;
+  } else if (traits.bodyShape === 'short') {
+    bodyLength = 0.62;
+    bodyHeight = 0.52;
+    bodyWidth = 0.32;
+    snoutRatio = 0.2;
   }
 
   // 1. Shaders from user's terrarium.glsl (Sections 10, 11, 12, 13)
@@ -108,7 +123,7 @@ export function createProceduralFish(
   rootGroup.add(bodyMesh);
 
   // 3. Snout & Mouth (Part 2)
-  const snoutGeo = new THREE.ConeGeometry(bodyWidth * 0.45, bodyLength * 0.28, 14);
+  const snoutGeo = new THREE.ConeGeometry(bodyWidth * 0.45, bodyLength * snoutRatio, 14);
   snoutGeo.rotateZ(-Math.PI / 2);
   snoutGeo.translate(bodyLength * 0.48, 0, 0);
   const snoutMesh = new THREE.Mesh(snoutGeo, bodyShaderMat);
@@ -134,17 +149,32 @@ export function createProceduralFish(
   rootGroup.add(eyeRight);
 
   // 5. Dorsal Fin (Part 5)
-  let dorsalHeight = bodyHeight * 0.6;
+  let dorsalHeight = bodyHeight * 0.55;
   let dorsalLength = bodyLength * 0.5;
   if (traits.finShape === 'veil' || traits.finShape === 'flowing') {
-    dorsalHeight *= 1.6;
-    dorsalLength *= 1.3;
+    dorsalHeight *= 1.8;
+    dorsalLength *= 1.35;
+  } else if (traits.finShape === 'high_dorsal') {
+    dorsalHeight *= 2.2;
+    dorsalLength *= 0.8;
+  } else if (traits.finShape === 'compact') {
+    dorsalHeight *= 0.65;
+    dorsalLength *= 0.65;
   }
 
   const dorsalShape = new THREE.Shape();
   dorsalShape.moveTo(-dorsalLength * 0.5, 0);
-  dorsalShape.quadraticCurveTo(0, dorsalHeight * 1.2, dorsalLength * 0.3, dorsalHeight * 0.4);
-  dorsalShape.lineTo(dorsalLength * 0.5, 0);
+  if (traits.finShape === 'spiky') {
+    dorsalShape.lineTo(-dorsalLength * 0.3, dorsalHeight * 0.9);
+    dorsalShape.lineTo(-dorsalLength * 0.15, dorsalHeight * 0.4);
+    dorsalShape.lineTo(0, dorsalHeight * 1.1);
+    dorsalShape.lineTo(dorsalLength * 0.15, dorsalHeight * 0.5);
+    dorsalShape.lineTo(dorsalLength * 0.3, dorsalHeight * 0.8);
+    dorsalShape.lineTo(dorsalLength * 0.5, 0);
+  } else {
+    dorsalShape.quadraticCurveTo(0, dorsalHeight * 1.25, dorsalLength * 0.3, dorsalHeight * 0.4);
+    dorsalShape.lineTo(dorsalLength * 0.5, 0);
+  }
   dorsalShape.closePath();
 
   const dorsalGeo = new THREE.ShapeGeometry(dorsalShape);
@@ -158,25 +188,35 @@ export function createProceduralFish(
   tailPivot.position.set(-bodyLength * 0.45, 0, 0);
   rootGroup.add(tailPivot);
 
-  let tailWidth = bodyLength * 0.5;
+  let tailWidth = bodyLength * 0.52;
   let tailHeight = bodyHeight * 0.85;
-  if (traits.tailShape === 'delta' || traits.tailShape === 'crown' || traits.tailShape === 'double') {
+  if (traits.tailShape === 'delta' || traits.tailShape === 'crown' || traits.tailShape === 'double' || traits.tailShape === 'fan') {
     tailHeight *= 1.4;
-    tailWidth *= 1.2;
+    tailWidth *= 1.25;
+  } else if (traits.tailShape === 'long') {
+    tailWidth *= 2.1;
+    tailHeight *= 1.1;
   }
 
   const caudalShape = new THREE.Shape();
   caudalShape.moveTo(0, 0);
   if (traits.tailShape === 'forked') {
-    caudalShape.lineTo(-tailWidth, tailHeight * 0.6);
+    caudalShape.lineTo(-tailWidth, tailHeight * 0.65);
     caudalShape.lineTo(-tailWidth * 0.55, 0);
-    caudalShape.lineTo(-tailWidth, -tailHeight * 0.6);
+    caudalShape.lineTo(-tailWidth, -tailHeight * 0.65);
   } else if (traits.tailShape === 'crown') {
-    caudalShape.lineTo(-tailWidth, tailHeight * 0.55);
-    caudalShape.lineTo(-tailWidth * 0.8, tailHeight * 0.25);
+    caudalShape.lineTo(-tailWidth, tailHeight * 0.6);
+    caudalShape.lineTo(-tailWidth * 0.8, tailHeight * 0.3);
     caudalShape.lineTo(-tailWidth, 0);
-    caudalShape.lineTo(-tailWidth * 0.8, -tailHeight * 0.25);
-    caudalShape.lineTo(-tailWidth, -tailHeight * 0.55);
+    caudalShape.lineTo(-tailWidth * 0.8, -tailHeight * 0.3);
+    caudalShape.lineTo(-tailWidth, -tailHeight * 0.6);
+  } else if (traits.tailShape === 'long') {
+    caudalShape.quadraticCurveTo(-tailWidth * 0.4, tailHeight * 0.8, -tailWidth, tailHeight * 0.3);
+    caudalShape.lineTo(-tailWidth * 0.8, 0);
+    caudalShape.quadraticCurveTo(-tailWidth * 0.4, -tailHeight * 0.8, 0, 0);
+  } else if (traits.tailShape === 'fan' || traits.tailShape === 'delta') {
+    caudalShape.lineTo(-tailWidth, tailHeight * 0.7);
+    caudalShape.quadraticCurveTo(-tailWidth * 1.1, 0, -tailWidth, -tailHeight * 0.7);
   } else {
     caudalShape.quadraticCurveTo(-tailWidth * 0.5, tailHeight * 0.6, -tailWidth, tailHeight * 0.5);
     caudalShape.quadraticCurveTo(-tailWidth * 0.8, 0, -tailWidth, -tailHeight * 0.5);
